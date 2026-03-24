@@ -34,15 +34,46 @@ export default function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f0f4fb]">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
-      <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-[380px_1fr] gap-6 items-start max-[900px]:grid-cols-1">
+
+      <main style={{
+        flex: 1,
+        maxWidth: '1200px',
+        width: '100%',
+        margin: '0 auto',
+        padding: '32px 24px',
+        display: 'grid',
+        gridTemplateColumns: '380px 1fr',
+        gap: '24px',
+        alignItems: 'start',
+      }}>
         <UploadPanel onExtracted={handleExtracted} />
         <CerfaForm data={data} highlighted={highlighted} onChange={handleChange} />
-      </div>
-      <footer className="text-center py-5 text-xs text-gray-400">
-        Application développée avec Gemini Vision · Cerfa 15776*01 © ANTS
+      </main>
+
+      <footer style={{
+        textAlign: 'center',
+        padding: '20px',
+        fontSize: '11.5px',
+        color: '#94a3b8',
+        borderTop: '1px solid rgba(37, 99, 235, 0.08)',
+        background: 'rgba(255,255,255,0.5)',
+        backdropFilter: 'blur(8px)',
+        letterSpacing: '0.1px',
+      }}>
+        Application développée avec{' '}
+        <span style={{ color: '#2563eb', fontWeight: 600 }}>Gemini Vision</span>
+        {' '}· Cerfa 15776★01 © ANTS
       </footer>
+
+      <style>{`
+        @media (max-width: 900px) {
+          main {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

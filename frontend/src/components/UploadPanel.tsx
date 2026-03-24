@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { DragEvent, ChangeEvent } from 'react'
-import { Upload, Scan, Car, CreditCard, Search } from 'lucide-react'
+import { Upload, Scan, Car, CreditCard, Search, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import type { DocType } from '../types'
 
 interface Props {
@@ -8,12 +8,33 @@ interface Props {
 }
 
 const DOC_TYPES: { id: DocType; label: string; icon: React.ReactNode }[] = [
-  { id: 'carte_grise', label: 'Carte grise', icon: <Car size={18} /> },
-  { id: 'cni', label: 'CNI / Passeport', icon: <CreditCard size={18} /> },
-  { id: 'auto', label: 'Auto-détect', icon: <Search size={18} /> },
+  { id: 'carte_grise', label: 'Carte grise', icon: <Car size={16} /> },
+  { id: 'cni', label: 'CNI / Passeport', icon: <CreditCard size={16} /> },
+  { id: 'auto', label: 'Auto-détect', icon: <Search size={16} /> },
 ]
 
 type Status = { type: 'idle' | 'loading' | 'success' | 'error'; message: string }
+
+const card: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(12px)',
+  borderRadius: '16px',
+  border: '1px solid rgba(37, 99, 235, 0.12)',
+  boxShadow: '0 4px 24px rgba(37, 99, 235, 0.08), 0 1px 4px rgba(0,0,0,0.04)',
+  overflow: 'hidden',
+}
+
+const cardHeader: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+  borderBottom: '1px solid rgba(37, 99, 235, 0.15)',
+  padding: '14px 20px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  fontWeight: 700,
+  fontSize: '13px',
+  color: '#1d4ed8',
+}
 
 export default function UploadPanel({ onExtracted }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -26,6 +47,7 @@ export default function UploadPanel({ onExtracted }: Props) {
 
   function handleFile(f: File) {
     setFile(f)
+    setStatus({ type: 'idle', message: '' })
     if (f.type.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = (e) => setPreview(e.target?.result as string)
@@ -73,21 +95,16 @@ export default function UploadPanel({ onExtracted }: Props) {
     }
   }
 
-  const statusColors = {
-    idle: '',
-    loading: 'bg-yellow-50 border border-yellow-300 text-yellow-800',
-    success: 'bg-green-50 border border-green-300 text-green-800',
-    error: 'bg-red-50 border border-red-300 text-red-800',
-  }
-
   return (
-    <div className="flex flex-col gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
       {/* Upload card */}
-      <div className="bg-white rounded-xl shadow border border-[#d0d8e8] overflow-hidden">
-        <div className="bg-[#e8f0fe] border-b-2 border-[#003189] px-5 py-3.5 flex items-center gap-2 font-bold text-sm text-[#003189]">
-          <Upload size={15} /> Scanner un document
+      <div style={card}>
+        <div style={cardHeader}>
+          <Upload size={14} />
+          Scanner un document
         </div>
-        <div className="p-5 flex flex-col gap-4">
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* Drop zone */}
           <div
@@ -95,35 +112,80 @@ export default function UploadPanel({ onExtracted }: Props) {
             onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
             onDragLeave={() => setDrag(false)}
             onDrop={onDrop}
-            className={`border-2 border-dashed rounded-xl p-7 text-center cursor-pointer transition-all
-              ${drag ? 'border-[#003189] bg-[#d4e2f8]' : 'border-[#4a7adb] bg-[#e8f0fe] hover:bg-[#d4e2f8]'}`}
+            style={{
+              border: `2px dashed ${drag ? '#2563eb' : file ? '#10b981' : '#93c5fd'}`,
+              borderRadius: '12px',
+              padding: '28px 16px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: drag ? 'rgba(37, 99, 235, 0.06)' : file ? 'rgba(16, 185, 129, 0.04)' : 'rgba(219, 234, 254, 0.4)',
+              transition: 'all 0.2s ease',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
-            <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={onInputChange} />
-            <div className="text-4xl mb-2">📄</div>
-            <p className="font-semibold text-[#003189]">
+            <input ref={inputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={onInputChange} />
+
+            {/* Animated ring when dragging */}
+            {drag && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'radial-gradient(circle at center, rgba(37,99,235,0.08) 0%, transparent 70%)',
+                pointerEvents: 'none',
+              }} />
+            )}
+
+            <div style={{ fontSize: '36px', marginBottom: '8px', lineHeight: 1 }}>
+              {file ? '✅' : '📄'}
+            </div>
+            <p style={{ fontWeight: 700, fontSize: '13px', color: file ? '#059669' : '#1d4ed8', marginBottom: '4px' }}>
               {file ? file.name : 'Déposer ou cliquer pour uploader'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Carte grise · Pièce d'identité · Photo</p>
-            <p className="text-xs text-gray-400 mt-1">JPG, PNG, HEIC, PDF</p>
+            <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>
+              Carte grise · Pièce d'identité · Photo
+            </p>
+            <p style={{ fontSize: '11px', color: '#9ca3af' }}>JPG, PNG, HEIC, PDF</p>
           </div>
 
           {/* Preview */}
           {preview && (
-            <img src={preview} alt="Aperçu" className="w-full rounded-lg border border-[#d0d8e8] max-h-48 object-contain" />
+            <div style={{
+              borderRadius: '10px',
+              overflow: 'hidden',
+              border: '1px solid rgba(37, 99, 235, 0.15)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}>
+              <img src={preview} alt="Aperçu" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain', display: 'block' }} />
+            </div>
           )}
 
           {/* Doc type selector */}
           <div>
-            <p className="text-xs font-bold text-gray-500 mb-2">Type de document :</p>
-            <div className="flex gap-2">
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Type de document
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
               {DOC_TYPES.map((dt) => (
                 <button
                   key={dt.id}
                   onClick={() => setDocType(dt.id)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 text-xs font-semibold transition-all
-                    ${docType === dt.id
-                      ? 'border-[#003189] bg-[#e8f0fe] text-[#003189]'
-                      : 'border-[#d0d8e8] bg-white text-gray-500 hover:border-[#4a7adb]'}`}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '10px 4px',
+                    borderRadius: '10px',
+                    border: `2px solid ${docType === dt.id ? '#2563eb' : 'rgba(37,99,235,0.12)'}`,
+                    background: docType === dt.id ? 'linear-gradient(135deg, #eff6ff, #dbeafe)' : '#fff',
+                    color: docType === dt.id ? '#1d4ed8' : '#6b7280',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: docType === dt.id ? '0 2px 8px rgba(37,99,235,0.15)' : 'none',
+                  }}
                 >
                   {dt.icon}
                   {dt.label}
@@ -136,12 +198,30 @@ export default function UploadPanel({ onExtracted }: Props) {
           <button
             onClick={extract}
             disabled={!file || loading}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-[#003189] text-white font-bold text-sm
-              hover:bg-[#00236b] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '13px',
+              borderRadius: '12px',
+              background: !file || loading
+                ? '#e2e8f0'
+                : 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%)',
+              color: !file || loading ? '#94a3b8' : '#fff',
+              fontWeight: 700,
+              fontSize: '13.5px',
+              border: 'none',
+              cursor: !file || loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: !file || loading ? 'none' : '0 4px 16px rgba(37, 99, 235, 0.35)',
+              letterSpacing: '0.1px',
+            }}
           >
             {loading ? (
               <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
                 Analyse en cours...
               </>
             ) : (
@@ -151,8 +231,21 @@ export default function UploadPanel({ onExtracted }: Props) {
 
           {/* Status */}
           {status.type !== 'idle' && (
-            <div className={`px-4 py-2.5 rounded-lg text-xs font-semibold ${statusColors[status.type]}`}>
-              {status.type === 'loading' && '⏳ '}{status.type === 'success' && '✅ '}{status.type === 'error' && '❌ '}
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '10px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              ...(status.type === 'loading' && { background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e' }),
+              ...(status.type === 'success' && { background: '#ecfdf5', border: '1px solid #6ee7b7', color: '#065f46' }),
+              ...(status.type === 'error' && { background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b' }),
+            }}>
+              {status.type === 'loading' && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />}
+              {status.type === 'success' && <CheckCircle size={14} style={{ flexShrink: 0 }} />}
+              {status.type === 'error' && <AlertCircle size={14} style={{ flexShrink: 0 }} />}
               {status.message}
             </div>
           )}
@@ -160,18 +253,39 @@ export default function UploadPanel({ onExtracted }: Props) {
       </div>
 
       {/* Tips card */}
-      <div className="bg-white rounded-xl shadow border border-[#d0d8e8] overflow-hidden">
-        <div className="bg-[#e8f0fe] border-b-2 border-[#003189] px-5 py-3.5 flex items-center gap-2 font-bold text-sm text-[#003189]">
-          💡 Conseils
+      <div style={card}>
+        <div style={cardHeader}>
+          <span>💡</span> Conseils d'utilisation
         </div>
-        <div className="p-5 text-xs text-gray-600 space-y-1.5 leading-relaxed">
-          <p>1️⃣ Uploadez la <strong>carte grise</strong> → infos véhicule + vendeur</p>
-          <p>2️⃣ Uploadez la <strong>CNI du vendeur</strong> → section vendeur complétée</p>
-          <p>3️⃣ Uploadez la <strong>CNI de l'acheteur</strong> → section acheteur complétée</p>
-          <p>4️⃣ Vérifiez et complétez les champs manquants</p>
-          <p>5️⃣ Téléchargez le <strong>PDF officiel</strong> rempli</p>
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {[
+            { num: '1', text: <><strong>Carte grise</strong> → infos véhicule + vendeur</> },
+            { num: '2', text: <><strong>CNI du vendeur</strong> → section vendeur complétée</> },
+            { num: '3', text: <><strong>CNI de l'acheteur</strong> → section acheteur complétée</> },
+            { num: '4', text: <>Vérifiez et complétez les champs manquants</> },
+            { num: '5', text: <>Téléchargez le <strong>PDF officiel</strong> rempli</> },
+          ].map(({ num, text }) => (
+            <div key={num} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{
+                width: '20px', height: '20px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+                color: '#fff',
+                fontSize: '10px',
+                fontWeight: 800,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                marginTop: '1px',
+              }}>{num}</span>
+              <span style={{ fontSize: '12.5px', color: '#374151', lineHeight: 1.5 }}>{text}</span>
+            </div>
+          ))}
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import io
 import os
 from pypdf import PdfReader, PdfWriter
 
+# Template PDF officiel Cerfa 15776*01 — NE PAS SUPPRIMER (requis pour générer les PDF remplis)
 CERFA_PATH = os.path.join(os.path.dirname(__file__), "cerfa_15776-01 (2).pdf")
 
 

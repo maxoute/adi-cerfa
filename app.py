@@ -14,14 +14,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__, static_folder="static", static_url_path="/assets")
+app = Flask(__name__, static_folder="static", static_url_path="")
 app.secret_key = os.environ["SECRET_KEY"]
 
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-client = genai.Client(api_key=GEMINI_API_KEY)
-
 # ─────────────────────────────────────────────
-# Prompts Gemini
+# Prompts
 # ─────────────────────────────────────────────
 
 PROMPT_CARTE_GRISE = """
@@ -105,32 +102,72 @@ Retourne UNIQUEMENT un JSON valide avec les champs que tu peux identifier parmi 
 
 
 def extract_data_from_image(image_bytes: bytes, doc_type: str = "auto") -> dict:
-    """Envoie l'image à Gemini et retourne les données extraites."""
+    """Envoie l'image au modèle IA configuré (AI_PROVIDER + AI_MODEL) et retourne les données extraites."""
     prompts = {
         "carte_grise": PROMPT_CARTE_GRISE,
         "cni": PROMPT_CNI,
         "auto": PROMPT_LIBRE,
     }
     prompt = prompts.get(doc_type, PROMPT_LIBRE)
-    image = PIL.Image.open(io.BytesIO(image_bytes))
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=[prompt, image],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        ),
-    )
+    provider = os.environ.get("AI_PROVIDER", "gemini").lower()
+    model = os.environ.get("AI_MODEL", "gemini-2.0-flash")
+
+    if provider == "gemini":
+        image = PIL.Image.open(io.BytesIO(image_bytes))
+        gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        response = gemini_client.models.generate_content(
+            model=model,
+            contents=[prompt, image],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            ),
+        )
+        raw = response.text
+
+    elif provider in ("mistral", "openai"):
+        import base64
+        from openai import OpenAI
+
+        api_keys = {
+            "mistral": os.environ.get("MISTRAL_API_KEY", ""),
+            "openai": os.environ.get("OPENAI_API_KEY", ""),
+        }
+        base_urls = {
+            "mistral": "https://api.mistral.ai/v1",
+            "openai": None,
+        }
+        oai_client = OpenAI(
+            api_key=api_keys[provider],
+            base_url=base_urls[provider],
+        )
+        img_b64 = base64.b64encode(image_bytes).decode()
+        response = oai_client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+                    ],
+                }
+            ],
+            response_format={"type": "json_object"},
+        )
+        raw = response.choices[0].message.content
+
+    else:
+        raise ValueError(f"Fournisseur IA inconnu : '{provider}'. Valeurs acceptées : gemini, mistral, openai")
 
     try:
-        return json.loads(response.text)
+        return json.loads(raw)
     except json.JSONDecodeError:
-        text = response.text
-        start = text.find("{")
-        end = text.rfind("}") + 1
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
         if start >= 0 and end > start:
-            return json.loads(text[start:end])
-        return {"error": "Impossible de parser la réponse", "raw": text}
+            return json.loads(raw[start:end])
+        return {"error": "Impossible de parser la réponse", "raw": raw}
 
 
 # ─────────────────────────────────────────────
