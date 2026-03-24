@@ -1,0 +1,21 @@
+# Environnement
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# PDF générés
+cerfa_*_rempli.pdf
+output/
+
+# Uploads temporaires
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store

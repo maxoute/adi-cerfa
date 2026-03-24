@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cerfa 15776*01 — Remplissage automatique IA</title>
+  <style>
+    :root {
+      --blue: #003189;
+      --blue-light: #e8f0fe;
+      --blue-mid: #4a7adb;
+      --green: #1a7a4a;
+      --red: #c0392b;
+      --gray: #555;
+      --border: #d0d8e8;
+      --radius: 10px;
+      --shadow: 0 2px 16px rgba(0,49,137,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4fb;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--blue);
+      color: white;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .logo {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+    header .subtitle {
+      font-size: 13px;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+    header .badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+    }
+
+    /* ── PANEL ── */
+    .panel {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .panel-header {
+      background: var(--blue-light);
+      border-bottom: 2px solid var(--blue);
+      padding: 14px 20px;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-body { padding: 20px; }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone {
+      border: 2.5px dashed var(--blue-mid);
+      border-radius: var(--radius);
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--blue-light);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--blue);
+      background: #d4e2f8;
+    }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 10px; }
+    .upload-zone p { font-size: 13px; color: var(--gray); margin-top: 6px; }
+    .upload-zone strong { color: var(--blue); font-size: 15px; }
+
+    /* Preview image */
+    .preview-img {
+      width: 100%;
+      border-radius: 8px;
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      display: none;
+      max-height: 220px;
+      object-fit: contain;
+    }
+
+    /* ── SELECT DOC TYPE ── */
+    .doc-type-selector {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+    .doc-type-btn {
+      flex: 1;
+      min-width: 90px;
+      padding: 8px 6px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray);
+      transition: all 0.15s;
+    }
+    .doc-type-btn .icon { font-size: 18px; display: block; margin-bottom: 4px; }
+    .doc-type-btn.active {
+      border-color: var(--blue);
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+
+    /* ── BOUTON ── */
+    .btn {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: white;
+    }
+    .btn-primary:hover { background: #00236b; }
+    .btn-primary:disabled { background: #aab; cursor: not-allowed; }
+    .btn-success {
+      background: var(--green);
+      color: white;
+      margin-top: 10px;
+    }
+    .btn-success:hover { background: #145d38; }
+
+    /* ── SPINNER ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── STATUS ── */
+    .status-bar {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+    }
+    .status-bar.loading { background: #fff8e1; color: #b8860b; border: 1px solid #f0d060; display: flex; align-items: center; gap: 8px; }
+    .status-bar.success { background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; }
+    .status-bar.error   { background: #fce4ec; color: #b71c1c; border: 1px solid #ef9a9a; }
+
+    /* ── FORM CERFA ── */
+    .cerfa-section {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+    }
+    .cerfa-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--blue);
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      background: var(--blue-light);
+      border-radius: 6px;
+      border-left: 3px solid var(--blue);
+    }
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .fields-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+    .fields-grid.full { grid-template-columns: 1fr; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field.span2 { grid-column: span 2; }
+    .field label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .field label .code {
+      background: var(--blue-light);
+      color: var(--blue);
+      border-radius: 4px;
+      padding: 0 5px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .field input, .field select {
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      transition: border 0.15s;
+      background: white;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--blue-mid);
+      box-shadow: 0 0 0 3px rgba(74,122,219,0.12);
+    }
+    .field input.ai-filled {
+      border-color: #4caf50;
+      background: #f1faf1;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 11px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Cerfa 15776*01</div>
+    <div class="subtitle">Certificat de cession d'un véhicule d'occasion — Remplissage automatique par IA</div>
+  </div>
+  <div class="badge">✨ Gemini Vision</div>
+</header>
+
+<div class="container">
+
+  <!-- ── COLONNE GAUCHE : Upload ── -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">📎 Scanner un document</div>
+      <div class="panel-body">
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/*,.pdf" multiple>
+          <div class="upload-icon">📄</div>
+          <strong>Déposer ou cliquer pour uploader</strong>
+          <p>Carte grise · Pièce d'identité · Photo</p>
+          <p style="margin-top:6px;font-size:11px;">JPG, PNG, HEIC, PDF acceptés</p>
+        </div>
+
+        <img id="previewImg" class="preview-img" alt="Aperçu">
+
+        <div style="margin-top:14px;">
+          <p style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:8px;">Type de document :</p>
+          <div class="doc-type-selector">
+            <button class="doc-type-btn active" data-type="carte_grise">
+              <span class="icon">🚗</span>Carte grise
+            </button>
+            <button class="doc-type-btn" data-type="cni">
+              <span class="icon">🪪</span>CNI / Passeport
+            </button>
+            <button class="doc-type-btn" data-type="auto">
+              <span class="icon">🔍</span>Auto-détect
+            </button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="extractBtn" disabled>
+          <span class="spinner" id="spinner"></span>
+          <span id="btnText">✨ Analyser avec l'IA</span>
+        </button>
+
+        <div class="status-bar" id="statusBar"></div>
+
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-header">💡 Conseils</div>
+      <div class="panel-body" style="font-size:12px;color:var(--gray);line-height:1.8;">
+        <p>1️⃣ Uploadez d'abord la <strong>carte grise</strong> → les infos du véhicule se remplissent</p>
+        <p>2️⃣ Uploadez la <strong>pièce d'identité</strong> du vendeur → section vendeur complétée</p>
+        <p>3️⃣ Uploadez la <strong>pièce d'identité</strong> de l'acheteur → section acheteur complétée</p>
+        <p>4️⃣ Vérifiez et complétez les champs manquants</p>
+        <p>5️⃣ Téléchargez le <strong>PDF officiel</strong> rempli</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COLONNE DROITE : Formulaire Cerfa ── -->
+  <div class="panel">
+    <div class="panel-header">📋 Cerfa 15776*01 — Certificat de cession</div>
+    <div class="panel-body">
+
+      <!-- VÉHICULE -->
+      <div class="cerfa-section">
+        <div class="section-title">🚗 Le véhicule</div>
+        <div class="fields-grid three">
+          <div class="field">
+            <label><span class="code">A</span> Immatriculation</label>
+            <input type="text" id="immatriculation" placeholder="AB-123-CD">
+          </div>
+          <div class="field">
+            <label><span class="code">B</span> Date 1re immat.</label>
+            <input type="text" id="date_premiere_immat" placeholder="JJ/MM/AAAA">
+          </div>
+          <div class="field">
+            <label>Kilométrage</label>
+            <input type="text" id="kilometrage" placeholder="ex: 85000">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field span2">
+            <label><span class="code">E</span> N° d'identification VIN</label>
+            <input type="text" id="numero_vin" placeholder="17 caractères">
+          </div>
+        </div>
+        <div class="fields-grid three" style="margin-top:12px;">
+          <div class="field">
+            <label><span class="code">D.1</span> Marque</label>
+            <input type="text" id="marque" placeholder="RENAULT, PEUGEOT...">
+          </div>
+          <div class="field">
+            <label><span class="code">D.2</span> Type / Version</label>
+            <input type="text" id="type_variante_version" placeholder="">
+          </div>
+          <div class="field">
+            <label><span class="code">J.1</span> Genre national</label>
+            <input type="text" id="genre_national" placeholder="VP, CTTE...">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field span2">
+            <label><span class="code">D.3</span> Dénomination commerciale</label>
+            <input type="text" id="denomination_commerciale" placeholder="">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field">
+            <label>N° de formule certificat</label>
+            <input type="text" id="numero_formule" placeholder="2...">
+          </div>
+          <div class="field">
+            <label>Date du certificat (ancien format)</label>
+            <input type="text" id="date_certificat" placeholder="JJ/MM/AAAA">
+          </div>
+        </div>
+      </div>
+
+      <!-- ANCIEN PROPRIÉTAIRE -->
+      <div class="cerfa-section">
+        <div class="section-title">👤 Ancien propriétaire (Vendeur)</div>
+        <div class="fields-grid">
+          <div class="field">
+            <label>Sexe</label>
+            <select id="sexe_vendeur">
+              <option value="">—</option>
+              <option value="M">M — Masculin</option>
+              <option value="F">F — Féminin</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>N° SIRET (si société)</label>
+            <input type="text" id="siret_vendeur" placeholder="14 chiffres">
+          </div>
+        </div>
+        <div class="fields-grid three" style="margin-top:12px;">
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="nom_vendeur" placeholder="NOM">
+          </div>
+          <div class="field">
+            <label>Nom d'usage</label>
+            <input type="text" id="nom_usage_vendeur" placeholder="(si différent)">
+          </div>
+          <div class="field">
+            <label>Prénom</label>
+            <input type="text" id="prenom_vendeur" placeholder="Prénom">
+          </div>
+        </div>
+        <div class="fields-grid three" style="margin-top:12px;">
+          <div class="field">
+            <label>N° de voie</label>
+            <input type="text" id="numero_voie_vendeur" placeholder="12">
+          </div>
+          <div class="field">
+            <label>Type de voie</label>
+            <input type="text" id="type_voie_vendeur" placeholder="rue, avenue...">
+          </div>
+          <div class="field">
+            <label>Nom de la voie</label>
+            <input type="text" id="nom_voie_vendeur" placeholder="de la Paix">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field">
+            <label>Code postal</label>
+            <input type="text" id="code_postal_vendeur" placeholder="75001">
+          </div>
+          <div class="field">
+            <label>Commune</label>
+            <input type="text" id="commune_vendeur" placeholder="Paris">
+          </div>
+        </div>
+      </div>
+
+      <!-- NOUVEAU PROPRIÉTAIRE -->
+      <div class="cerfa-section">
+        <div class="section-title">👤 Nouveau propriétaire (Acheteur)</div>
+        <div class="fields-grid">
+          <div class="field">
+            <label>Sexe</label>
+            <select id="sexe_acheteur">
+              <option value="">—</option>
+              <option value="M">M — Masculin</option>
+              <option value="F">F — Féminin</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>N° SIRET (si société)</label>
+            <input type="text" id="siret_acheteur" placeholder="14 chiffres">
+          </div>
+        </div>
+        <div class="fields-grid three" style="margin-top:12px;">
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="nom_acheteur" placeholder="NOM">
+          </div>
+          <div class="field">
+            <label>Nom d'usage</label>
+            <input type="text" id="nom_usage_acheteur" placeholder="(si différent)">
+          </div>
+          <div class="field">
+            <label>Prénom</label>
+            <input type="text" id="prenom_acheteur" placeholder="Prénom">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field">
+            <label>Date de naissance</label>
+            <input type="text" id="date_naissance_acheteur" placeholder="JJ/MM/AAAA">
+          </div>
+          <div class="field">
+            <label>Lieu de naissance</label>
+            <input type="text" id="lieu_naissance_acheteur" placeholder="Ville">
+          </div>
+        </div>
+        <div class="fields-grid three" style="margin-top:12px;">
+          <div class="field">
+            <label>N° de voie</label>
+            <input type="text" id="numero_voie_acheteur" placeholder="12">
+          </div>
+          <div class="field">
+            <label>Type de voie</label>
+            <input type="text" id="type_voie_acheteur" placeholder="rue, avenue...">
+          </div>
+          <div class="field">
+            <label>Nom de la voie</label>
+            <input type="text" id="nom_voie_acheteur" placeholder="de la Paix">
+          </div>
+        </div>
+        <div class="fields-grid" style="margin-top:12px;">
+          <div class="field">
+            <label>Code postal</label>
+            <input type="text" id="code_postal_acheteur" placeholder="75001">
+          </div>
+          <div class="field">
+            <label>Commune</label>
+            <input type="text" id="commune_acheteur" placeholder="Paris">
+          </div>
+        </div>
+      </div>
+
+      <!-- CESSION -->
+      <div class="cerfa-section">
+        <div class="section-title">📅 Informations de cession</div>
+        <div class="fields-grid three">
+          <div class="field">
+            <label>Date de cession</label>
+            <input type="text" id="date_cession" placeholder="JJ/MM/AAAA">
+          </div>
+          <div class="field">
+            <label>Heure de cession</label>
+            <input type="text" id="heure_cession" placeholder="14h30">
+          </div>
+          <div class="field">
+            <label>Lieu de cession</label>
+            <input type="text" id="lieu_cession" placeholder="Paris">
+          </div>
+        </div>
+      </div>
+
+      <!-- BOUTON GÉNÉRATION PDF -->
+      <button class="btn btn-success" id="generateBtn">
+        📥 Télécharger le Cerfa rempli (PDF)
+      </button>
+
+    </div>
+  </div>
+
+</div>
+
+<footer>Application développée avec Gemini Vision · Cerfa 15776*01 © ANTS</footer>
+
+<script>
+// ── Mapping champs JSON → IDs HTML ──
+const FIELD_MAP = {
+  // Véhicule (carte grise)
+  immatriculation: 'immatriculation',
+  date_premiere_immat: 'date_premiere_immat',
+  numero_vin: 'numero_vin',
+  marque: 'marque',
+  type_variante_version: 'type_variante_version',
+  denomination_commerciale: 'denomination_commerciale',
+  genre_national: 'genre_national',
+  numero_formule: 'numero_formule',
+  date_certificat: 'date_certificat',
+  kilometrage: 'kilometrage',
+
+  // Vendeur (depuis carte grise ou CNI)
+  nom_proprietaire: 'nom_vendeur',
+  prenom_proprietaire: 'prenom_vendeur',
+  adresse_proprietaire: 'nom_voie_vendeur',
+  code_postal: 'code_postal_vendeur',
+  commune: 'commune_vendeur',
+  nom: 'nom_vendeur',
+  prenom: 'prenom_vendeur',
+  nom_usage: 'nom_usage_vendeur',
+  sexe: 'sexe_vendeur',
+  adresse: 'nom_voie_vendeur',
+  numero_voie: 'numero_voie_vendeur',
+  type_voie: 'type_voie_vendeur',
+  nom_voie: 'nom_voie_vendeur',
+  siret: 'siret_vendeur',
+
+  // Acheteur (depuis 2ème CNI)
+  nom_acheteur: 'nom_acheteur',
+  prenom_acheteur: 'prenom_acheteur',
+  nom_usage_acheteur: 'nom_usage_acheteur',
+  sexe_acheteur: 'sexe_acheteur',
+  date_naissance_acheteur: 'date_naissance_acheteur',
+  lieu_naissance_acheteur: 'lieu_naissance_acheteur',
+  adresse_acheteur: 'nom_voie_acheteur',
+  numero_voie_acheteur: 'numero_voie_acheteur',
+  type_voie_acheteur: 'type_voie_acheteur',
+  nom_voie_acheteur: 'nom_voie_acheteur',
+  code_postal_acheteur: 'code_postal_acheteur',
+  commune_acheteur: 'commune_acheteur',
+
+  // Cession
+  date_cession: 'date_cession',
+  heure_cession: 'heure_cession',
+  lieu_cession: 'lieu_cession',
+};
+
+// ── État ──
+let selectedDocType = 'carte_grise';
+let selectedFile = null;
+
+// ── Upload ──
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+const previewImg = document.getElementById('previewImg');
+const extractBtn = document.getElementById('extractBtn');
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  extractBtn.disabled = false;
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      previewImg.src = ev.target.result;
+      previewImg.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    previewImg.style.display = 'none';
+  }
+});
+
+// Drag & drop
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) { fileInput.files = e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }
+});
+
+// ── Type de document ──
+document.querySelectorAll('.doc-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedDocType = btn.dataset.type;
+  });
+});
+
+// ── Extraction IA ──
+extractBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btnText');
+  const statusBar = document.getElementById('statusBar');
+
+  extractBtn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Analyse en cours...';
+  statusBar.className = 'status-bar loading';
+  statusBar.innerHTML = '⏳ Gemini Vision analyse votre document...';
+  statusBar.style.display = 'flex';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+  formData.append('doc_type', selectedDocType);
+
+  try {
+    const res = await fetch('/api/extract', { method: 'POST', body: formData });
+    const json = await res.json();
+
+    if (json.success && json.data) {
+      fillForm(json.data);
+      const count = Object.values(json.data).filter(v => v && v !== '').length;
+      statusBar.className = 'status-bar success';
+      statusBar.innerHTML = `✅ ${count} champs remplis automatiquement !`;
+    } else {
+      statusBar.className = 'status-bar error';
+      statusBar.innerHTML = '❌ Erreur : ' + (json.error || 'Réponse invalide');
+    }
+  } catch (err) {
+    statusBar.className = 'status-bar error';
+    statusBar.innerHTML = '❌ Erreur réseau : ' + err.message;
+  } finally {
+    extractBtn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = '✨ Analyser avec l\'IA';
+  }
+});
+
+// ── Remplissage du formulaire ──
+function fillForm(data) {
+  for (const [key, fieldId] of Object.entries(FIELD_MAP)) {
+    const value = data[key];
+    if (value && value !== '') {
+      const el = document.getElementById(fieldId);
+      if (el && !el.value) {
+        el.value = value;
+        el.classList.add('ai-filled');
+        setTimeout(() => el.classList.remove('ai-filled'), 3000);
+      }
+    }
+  }
+}
+
+// ── Génération PDF ──
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  const allFields = [
+    'immatriculation','date_premiere_immat','numero_vin','marque',
+    'type_variante_version','denomination_commerciale','genre_national',
+    'numero_formule','date_certificat','kilometrage',
+    'sexe_vendeur','nom_vendeur','nom_usage_vendeur','prenom_vendeur',
+    'siret_vendeur','numero_voie_vendeur','type_voie_vendeur','nom_voie_vendeur',
+    'code_postal_vendeur','commune_vendeur',
+    'sexe_acheteur','nom_acheteur','nom_usage_acheteur','prenom_acheteur',
+    'siret_acheteur','date_naissance_acheteur','lieu_naissance_acheteur',
+    'numero_voie_acheteur','type_voie_acheteur','nom_voie_acheteur',
+    'code_postal_acheteur','commune_acheteur',
+    'date_cession','heure_cession','lieu_cession'
+  ];
+
+  const payload = {};
+  for (const id of allFields) {
+    const el = document.getElementById(id);
+    if (el) payload[id] = el.value;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Génération en cours...';
+
+  try {
+    const res = await fetch('/api/generate-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cerfa_15776-01_rempli.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const err = await res.json();
+      alert('Erreur : ' + err.error);
+    }
+  } catch (e) {
+    alert('Erreur réseau : ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📥 Télécharger le Cerfa rempli (PDF)';
+  }
+});
+</script>
+
+</body>
+</html>
