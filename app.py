@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="/assets")
 app.secret_key = os.environ["SECRET_KEY"]
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
@@ -137,10 +137,15 @@ def extract_data_from_image(image_bytes: bytes, doc_type: str = "auto") -> dict:
 # Routes
 # ─────────────────────────────────────────────
 
-@app.route("/")
-def index():
-    with open(os.path.join(os.path.dirname(__file__), "templates", "index.html"), encoding="utf-8") as f:
-        return f.read()
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def index(path: str):
+    # Serve the React build; fall back to index.html for client-side routing
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    file_path = os.path.join(static_dir, path)
+    if path and os.path.isfile(file_path):
+        return send_file(file_path)
+    return send_file(os.path.join(static_dir, "index.html"))
 
 
 @app.route("/api/extract", methods=["POST"])
